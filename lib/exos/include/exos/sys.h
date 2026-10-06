@@ -19,11 +19,16 @@ __sys6 (int num, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4,
 	uint32_t a5, uint32_t a6)
 {
   int r = num;
-  asm volatile ("pushl %%ebp\n\t"
-		"movl %6, %%ebp\n\t"
+  /* %ebp carries the sixth argument.  The operand is pushed first: a
+     memory operand may be %esp-relative, and push computes its address
+     before decrementing %esp. */
+  asm volatile ("pushl %6\n\t"
+		"pushl %%ebp\n\t"
+		"movl 4(%%esp), %%ebp\n\t"
 		"int $0x21\n\t"
-		"popl %%ebp":"+a" (r):"D" (a1), "S" (a2), "c" (a3), "d" (a4),
-		"b" (a5), "m" (a6):"memory", "cc");
+		"popl %%ebp\n\t"
+		"addl $4, %%esp":"+a" (r):"D" (a1), "S" (a2), "c" (a3), "d" (a4),
+		"b" (a5), "g" (a6):"memory", "cc");
   return r;
 }
 

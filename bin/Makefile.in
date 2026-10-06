@@ -7,7 +7,7 @@
 PROGRAMS= init sh hello echo cat ls mkdir rmdir rm cp mv wc head tail grep \
 	touch env sleep true false sync kill date ps uptime free df sysinfo \
 	hexdump sort uniq tee yes chmod stat basename dirname seq poweroff \
-	netd ping ifconfig fetch httpd cmp md5sum
+	netd ping ifconfig fetch httpd cmp md5sum xoktests
 
 # Programs installed under several names.
 ALIASES= reboot:poweroff

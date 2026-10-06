@@ -393,7 +393,15 @@ dup_range (envid_t child, uintptr_t start, uintptr_t end, int copy)
       pte = vpt[va >> PGSHIFT];
       if (!(pte & PTE_P) || (pte & PTE_NOFORK))
 	continue;
-      r = copy ? copy_page (child, va, pte) : dup_page (child, va, pte);
+      /* Pages pinned by the kernel (message rings, wakeup predicates)
+         must stay ours: give the child a copy instead of sharing them
+         copy-on-write. */
+      if (!copy && !(pte & PTE_SHARE) && (pte & PTE_W)
+	  && ppages_info[PTE_PPN (pte)].pp_state == PP_USER
+	  && ppages_info[PTE_PPN (pte)].pp_pinned)
+	r = copy_page (child, va, pte);
+      else
+	r = copy ? copy_page (child, va, pte) : dup_page (child, va, pte);
       if (r < 0)
 	return r;
     }
