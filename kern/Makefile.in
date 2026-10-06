@@ -9,7 +9,8 @@ NUX_KERNEL=xok
 
 SRCS+= main.c pmem.c cap.c env.c sched.c trap.c uaccess.c syscall.c \
 	ipc.c wk.c sreg.c console.c dev.c pci.c power.c rtc.c \
-	blk.c ide.c ahci.c virtio.c virtio_blk.c udf.c xn.c util.c stubs.c
+	blk.c ide.c ahci.c virtio.c virtio_blk.c udf.c xn.c util.c net.c e1000.c rtl8139.c \
+	virtio_net.c stubs.c
 
 CFLAGS+= -I$(SRCROOT)/include -I$(SRCROOT)/nux/include -I$(BUILDROOT)/nux/include
 

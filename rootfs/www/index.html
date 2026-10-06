@@ -1,0 +1,17 @@
+<html>
+<head><title>Xok/ExOS</title></head>
+<body>
+<h1>Hello from Xok/ExOS</h1>
+<p>This page is served by <b>httpd</b>, an event-driven web server
+running as an ordinary unprivileged process on the Xok exokernel.</p>
+<ul>
+<li>The file comes from <b>C-FFS</b>, a library file system whose
+on-disk structures are protected by <b>XN</b> through untrusted
+deterministic functions.</li>
+<li>The TCP/IP stack is a library linked in the server; packets reach it
+through a <b>dynamic packet filter</b> and a packet ring in its own
+memory.</li>
+</ul>
+<p>See <a href="/status">/status</a> for what the exokernel exposes.</p>
+</body>
+</html>

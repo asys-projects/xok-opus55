@@ -8,6 +8,7 @@
 
 #include <exos/exos.h>
 #include <exos/fd.h>
+#include <exos/net.h>
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -643,6 +644,13 @@ exos_fd_init (int is_boot)
 			     a) < 0)
       exos_panic ("cannot allocate the file table");
   memset ((void *) FILETAB, 0, FILETAB_SIZE);
+  /* The network configuration page, filled by netd. */
+  if (sys_self_insert_pte (CAP_WORLD, PTE_P | PTE_W | PTE_U | PTE_SHARE,
+			   NETCFG) == 0)
+    {
+      memset ((void *) NETCFG, 0, PGSIZE);
+      ((volatile struct netcfg_page *) NETCFG)->magic = NETCFG_MAGIC;
+    }
   for (int fd = 0; fd < 3; fd++)
     {
       struct file *f;

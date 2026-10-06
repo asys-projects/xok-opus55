@@ -180,6 +180,12 @@ static struct
 void *
 exos_mmap_alloc (size_t len)
 {
+  return exos_mmap_alloc_flags (len, PTE_W);
+}
+
+void *
+exos_mmap_alloc_flags (size_t len, xpte_t flags)
+{
   uintptr_t va = UMMAP;
 
   len = PGROUNDUP (len);
@@ -196,7 +202,7 @@ again:
   for (int i = 0; i < NMMAP; i++)
     if (mmaps[i].len == 0)
       {
-	if (exos_range_alloc (va, len, PTE_W) < 0)
+	if (exos_range_alloc (va, len, flags) < 0)
 	  {
 	    exos_range_unmap (va, len);
 	    return NULL;

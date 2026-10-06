@@ -750,12 +750,21 @@ execve (const char *path, char *const argv[], char *const envp[])
 	goto fail;
   if ((r = setup_stack (child, argv, envp, &sp)) < 0)
     goto fail;
-  /* The shared file table. */
-  for (uintptr_t a = FILETAB; a < FILETAB + FILETAB_SIZE; a += PGSIZE)
-    if ((r = sys_insert_pte (CAP_WORLD, (vpt[a >> PGSHIFT] & PTE_FRAME)
-			     | PTE_P | PTE_W | PTE_U | PTE_SHARE, a,
-			     EXOS_CAP, child)) < 0)
-      goto fail;
+  /* Shared regions (the file table, the network configuration...). */
+  for (uintptr_t a = USHARED; a < USHARED_TOP; a += PGSIZE)
+    {
+      xpte_t pte;
+      if (a % (2 * 1024 * 1024) == 0 && !exos_mapped_2m (a))
+	{
+	  a += 2 * 1024 * 1024 - PGSIZE;
+	  continue;
+	}
+      pte = vpt[a >> PGSHIFT];
+      if (!(pte & PTE_P) || !(pte & PTE_SHARE))
+	continue;
+      if ((r = dup_page (child, a, pte)) < 0)
+	goto fail;
+    }
   memset (&utf, 0, sizeof (utf));
   utf.utf_eip = eh.e_entry;
   utf.utf_esp = sp;
@@ -831,6 +840,8 @@ execvp (const char *file, char *const argv[])
 /*
  * exit and wait.
  */
+extern void (*__exos_net_exit) (void) __attribute__ ((weak));
+
 void
 _exit (int status)
 {
@@ -838,6 +849,8 @@ _exit (int status)
   envid_t parent;
 
   fd_close_all ();
+  if (&__exos_net_exit && __exos_net_exit)
+    __exos_net_exit ();
   cffs_sync ();
   exos_crit_enter ();
   __proc->status = (status & 0xff) << 8;

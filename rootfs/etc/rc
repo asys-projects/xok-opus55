@@ -1,3 +1,6 @@
 # ExOS boot script, run by init.
 echo "rc: starting services"
+netd &
+sleep 0.5
+httpd -p 80 &
 cat /etc/motd

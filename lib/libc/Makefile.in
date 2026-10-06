@@ -7,6 +7,6 @@
 LIBRARY=c
 NOINST=y
 
-SRCS+= string.c printf.c stdio.c stdlib.c malloc.c setjmp.S time.c
+SRCS+= string.c printf.c stdio.c stdlib.c malloc.c setjmp.S time.c inet.c
 
 include $(BUILDROOT)/mk/xokuser.mk

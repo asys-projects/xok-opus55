@@ -8,7 +8,7 @@ LIBRARY=exos
 NOINST=y
 
 SRCS+= entry.S upcall.c start.c vm.c wait.c xnlib.c cffs.c cffs_templates.c \
-	udfasm.c fd.c proc.c posix.c
+	udfasm.c fd.c proc.c posix.c netif.c socket.c
 
 OBJSRCS+= crt0.S
 

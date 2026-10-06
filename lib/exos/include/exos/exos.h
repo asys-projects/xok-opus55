@@ -125,9 +125,21 @@ static inline int exos_mapped (uintptr_t va)
 {
   return (exos_pte (va) & PTE_P) != 0;
 }
+/* Does the 2MB region at VA have any mapping?  (The exported page table
+   page is shared zeros if not.) */
+static inline int exos_mapped_2m (uintptr_t va)
+{
+  const volatile uint32_t *p = (const volatile uint32_t *)
+    &vpt[(va & ~0x1fffffUL) >> PGSHIFT];
+  for (int i = 0; i < 1024; i += 8)
+    if (p[i] | p[i + 2] | p[i + 4] | p[i + 6])
+      return 1;
+  return 0;
+}
 int exos_cow_fault (uintptr_t va);
 void exos_vm_init (void);
 void *exos_mmap_alloc (size_t len);
+void *exos_mmap_alloc_flags (size_t len, xpte_t flags);
 void exos_mmap_free (void *p, size_t len);
 int exos_touch (const void *buf, size_t len, int write);
 

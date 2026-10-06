@@ -83,14 +83,26 @@ def main():
     ap.add_argument("builddir")
     ap.add_argument("--disk", default=None)
     ap.add_argument("--timeout", type=float, default=60)
+    ap.add_argument("--net", default="e1000")
+    ap.add_argument("--fwd", default="tcp::8080-:80,hostfwd=udp::5555-:7")
     ap.add_argument("cmds", nargs="*")
     a = ap.parse_args()
     disk = ["-drive", "file=%s,format=raw,if=ide" %
             (a.disk or os.path.join(a.builddir, "disk.img"))]
-    x = Xok(a.builddir, disk=disk)
+    net = None
+    if a.net != "none":
+        net = ["-netdev", "user,id=n0,hostfwd=" + a.fwd,
+               "-device", a.net + ",netdev=n0"]
+    x = Xok(a.builddir, disk=disk, net=net)
     try:
         x.read_until(PROMPT, a.timeout)
         for c in a.cmds:
+            if c.startswith("!host "):
+                print("host$ " + c[6:])
+                r = subprocess.run(c[6:], shell=True, capture_output=True,
+                                   text=True, timeout=a.timeout)
+                print(r.stdout + r.stderr, end="")
+                continue
             print("$ " + c)
             print(x.cmd(c, a.timeout))
         x.send("poweroff\r")
