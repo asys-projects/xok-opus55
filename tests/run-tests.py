@@ -221,6 +221,7 @@ if not QUICK:
     test_config("ahci-e1000e", "ahci", "e1000e", machine="q35")
     test_config("virtio", "virtio", "virtio-net-pci", smp=4)
     test_config("rtl8139-up", "ide", "rtl8139", smp=1)
+    test_config("ne2k", "ide", "ne2k_pci")
 
 npass = sum(1 for _, ok in results if ok)
 nfail = len(results) - npass

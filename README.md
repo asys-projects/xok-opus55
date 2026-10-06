@@ -80,7 +80,8 @@ cat /etc/motd | wc
 and from the host: `curl http://localhost:8080/`.
 
 Other configurations are supported (`QEMU_DISK`, `QEMU_NET` variables of
-the Makefile): AHCI (`-M q35`), virtio-blk, e1000e, RTL8139, virtio-net.
+the Makefile): AHCI (`-M q35`), virtio-blk, e1000e, RTL8139, NE2000 (`ne2k_pci`),
+virtio-net.
 
 ## Testing
 
