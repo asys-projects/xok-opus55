@@ -56,6 +56,11 @@ struct env
 
   /* Message ring. */
   struct msgring *mr;
+
+  /* Revocation. */
+  bool revoke_pending;
+  bool revoke_delivered;
+  uint64_t revoke_deadline;
 };
 
 extern struct env envs[NENV];
@@ -128,6 +133,11 @@ int sreg_read (struct env *cur, unsigned k, unsigned id, uint32_t off,
 	       uaddr_t buf, uint32_t len);
 int sreg_write (struct env *cur, unsigned k, unsigned id, uint32_t off,
 		uaddr_t buf, uint32_t len);
+
+/* Revocation (revoke.c). */
+int revoke_request (struct env *e, unsigned n);
+void revoke_check_memory (void);
+void revoke_timer (void);
 
 /* Syscall dispatcher (syscall.c). */
 void syscall (struct env *e, unsigned long num, unsigned long a1,

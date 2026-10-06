@@ -110,5 +110,6 @@ enum
 #define DBG_PRINT_ENVS 1
 #define DBG_PRINT_PAGES 2
 #define DBG_PANIC 3
+#define DBG_REVOKE 4		/* arg = envid: request a revocation. */
 
 #endif

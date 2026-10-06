@@ -181,6 +181,7 @@ bc_page_alloc (int i)
   ppinfo[pfn].pp_bc = i + 1;
   ppinfo[pfn].pp_owner = 0;
   bc[i].bc_ppn = pfn;
+  revoke_check_memory ();
   return pfn;
 }
 

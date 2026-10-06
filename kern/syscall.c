@@ -94,6 +94,7 @@ pte_insert (struct env *cur, struct env *e, unsigned k, vaddr_t va,
       ppinfo[pfn].pp_state = PP_USER;
       ppinfo[pfn].pp_owner = cur->id;
       memcpy (&ppages[pfn].pk_acl, c, sizeof (struct cap));
+      revoke_check_memory ();
     }
   if (ppinfo[pfn].pp_state == PP_RESERVED)
     {
@@ -593,6 +594,14 @@ syscall (struct env *e, unsigned long num, unsigned long a1,
 	case DBG_PANIC:
 	  kpanic ("panic requested by env %x", e->id);
 	  break;
+	case DBG_REVOKE:
+	  {
+	    struct env *v;
+	    r = env_control (e, CAP_ROOT, a2, &v);
+	    if (r == 0)
+	      r = revoke_request (v, 16);
+	    break;
+	  }
 	default:
 	  r = -E_INVAL;
 	}

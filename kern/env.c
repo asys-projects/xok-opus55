@@ -370,7 +370,11 @@ env_setup_common (struct env *e, envid_t parent)
   e->vpt = NULL;
   e->wk = NULL;
   e->ipc_peer = 0;
+  e->ipc_pending = false;
+  e->ipc_return = false;
   e->mr = NULL;
+  e->revoke_pending = false;
+  e->revoke_delivered = false;
   memset (e->u, 0, PAGE_SIZE);
   memset ((void *) e->info, 0, sizeof (struct envinfo));
   e->info->e_id = e->id;

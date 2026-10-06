@@ -109,6 +109,7 @@ sched_timer (void)
   unsigned me = cpu_id ();
 
   programmed = UINT64_MAX;
+  revoke_timer ();
   for (unsigned c = 0; c < ncpus; c++)
     {
       if (c == me)
@@ -374,6 +375,17 @@ again:
 	      goto again;
 	    }
 	  e->u->u_prologue_count++;
+	}
+    }
+
+  if (e->revoke_pending && !e->revoke_delivered && e->u->u_entrevoke)
+    {
+      uint32_t args[5] = { e->u->u_revoke_npages, 0, 0, 0, 0 };
+      e->revoke_delivered = true;
+      if (upcall_push (e, UPC_REVOKE, 0, 0, 0, args) < 0)
+	{
+	  kill_env (e, "cannot deliver revocation");
+	  goto again;
 	}
     }
 

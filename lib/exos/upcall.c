@@ -18,6 +18,7 @@
  */
 
 #include <exos/exos.h>
+#include <exos/fs.h>
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
@@ -177,6 +178,12 @@ __exos_upcall_c (struct utf *utf)
     case UPC_IPC:
       handle_ipc (utf);
       break;
+    case UPC_REVOKE:
+      /* Give memory back: our buffer cache mappings are only a cache
+         (XN can then reclaim the pages; we map them again on use). */
+      xnl_unmap_all ();
+      __uenv->u_revoke_npages = 0;
+      break;
     default:
       break;
     }
@@ -201,6 +208,10 @@ exos_init_upcalls (void)
   __uenv->u_entipc = entry;
   __uenv->u_entepilogue = entry;
   __uenv->u_entprologue = entry;
+  __uenv->u_entrevoke = entry;
+  /* Our buffer cache window can be repossessed. */
+  __uenv->u_revoke_lo = BCWIN;
+  __uenv->u_revoke_hi = BCWIN_TOP;
   __uenv->u_ipc_accept = 1;
   exos_ipc_register (IPC_PING, ipc_ping);
 }

@@ -329,6 +329,77 @@ test_sched (void)
 }
 
 /*
+ * Visible revocation.
+ */
+static int
+bc_window_mappings (void)
+{
+  int n = 0;
+  for (uintptr_t va = BCWIN; va < BCWIN_TOP; va += PGSIZE)
+    {
+      if (va % 0x200000 == 0 && !exos_mapped_2m (va))
+	{
+	  va += 0x200000 - PGSIZE;
+	  continue;
+	}
+      if (exos_mapped (va))
+	n++;
+    }
+  return n;
+}
+
+static int
+read_file (const char *p)
+{
+  char buf[4096];
+  int fd = open (p, O_RDONLY), n, t = 0;
+  while (fd >= 0 && (n = read (fd, buf, sizeof (buf))) > 0)
+    t += n;
+  close (fd);
+  return t;
+}
+
+static int
+refuse_revocation (void)
+{
+  int fds[2];
+  /* No revocation handler: the kernel will repossess. */
+  __uenv->u_entrevoke = 0;
+  read_file ("/bin/sh");
+  int before = bc_window_mappings ();
+  if (before < 16)
+    return 2;
+  usleep (1500000);
+  /* The kernel took 16 mappings, all in the declared range, and our
+     program text (also buffer cache pages) is untouched. */
+  return __uenv->u_nrepossessed == 16
+    && bc_window_mappings () == before - 16 ? 0 : 1;
+  (void) fds;
+}
+
+static void
+test_revocation (void)
+{
+  read_file ("/bin/ls");
+  int before = bc_window_mappings ();
+  int r = sys_debug (DBG_REVOKE, __envid);
+  for (int i = 0; i < 20 && __uenv->u_revoke_npages; i++)
+    sys_yield (-1);
+  CHECK ("revoke: library releases its buffer cache mappings",
+	 before > 0 && r == 0 && __uenv->u_revoke_npages == 0
+	 && bc_window_mappings () == 0);
+  pid_t p = fork ();
+  if (p == 0)
+    _exit (refuse_revocation ());
+  usleep (500000);
+  r = sys_debug (DBG_REVOKE, exos_pid2env (p));
+  int st;
+  waitpid (p, &st, 0);
+  CHECK ("revoke: abort protocol repossesses mappings",
+	 r == 0 && WIFEXITED (st) && WEXITSTATUS (st) == 0);
+}
+
+/*
  * Pipes.
  */
 static void
@@ -571,6 +642,7 @@ main (int argc, char **argv)
   test_ipc ();
   test_sreg_wk ();
   test_sched ();
+  test_revocation ();
   test_pipes ();
   test_fs ();
   test_fs_protection ();

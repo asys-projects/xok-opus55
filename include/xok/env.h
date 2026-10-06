@@ -101,8 +101,16 @@ struct Uenv
   /* INT vectors (0x30-0xff) redirected to u_entexcept, as a bitmap. */
   uint32_t u_intmask[8];
 
-  /* Revocation: number of pages the kernel asks back. */
+  /* Visible revocation: number of pages the kernel asks back (the
+     library clears it when done).  If it does not comply in time, the
+     kernel repossesses buffer cache mappings (the abort protocol) and
+     records their addresses in the repossession vector. */
   volatile uint32_t u_revoke_npages;
+  volatile uint32_t u_nrepossessed;
+  volatile uint32_t u_repossessed[16];
+  /* Address range of the library's revocable mappings (caches), where
+     the abort protocol may take buffer cache pages back.  Empty: none. */
+  uint32_t u_revoke_lo, u_revoke_hi;
 
   /* Statistics maintained by the kernel. */
   volatile uint32_t u_prologue_count;
@@ -115,7 +123,7 @@ struct Uenv
   /* Message ring head (kernel write index), see msgring.h. */
   volatile uint32_t u_msgring_head;
 
-  uint8_t u_pad[UENV_LIBOS_OFF - 28 * 4];
+  uint8_t u_pad[UENV_LIBOS_OFF - 47 * 4];
 
   /* Reserved to the library operating system. */
   uint8_t u_libos[4096 - UENV_LIBOS_OFF];
