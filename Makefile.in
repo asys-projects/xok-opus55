@@ -43,9 +43,12 @@ qemu: xok.mb disk.img
 qemu-gdb: xok.mb disk.img
 	$(QEMU) $(QEMU_FLAGS) -kernel xok.mb $(QEMU_DISK) $(QEMU_NET) -S -s
 
-check: xok.mb disk.img
+check: xok.mb
 	$(SRCROOT)/tests/run-tests.sh $(BUILDROOT)
+
+check-quick: xok.mb
+	$(SRCROOT)/tests/run-tests.sh $(BUILDROOT) --quick
 
 ALL_TARGET+= xok.mb
 CLEAN_FILES+= xok.mb xok.mb.ar50 disk.img
-.PHONY: qemu qemu-gdb check
+.PHONY: qemu qemu-gdb check check-quick
