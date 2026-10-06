@@ -16,11 +16,6 @@
 #include <time.h>
 #include <stdio.h>
 
-static int mounted;
-static unsigned fsdev;
-static uint32_t superblk;
-static unsigned tid[CFFS_NTYPES];
-
 #define INO_OFF(_slot) ((_slot) * CFFS_DIRENT_SIZE + CFFS_DIRENT_INODE)
 
 static int
@@ -43,11 +38,105 @@ xe (int r)
       return -EBUSY;
     case E_NOT_FOUND:
       return -ENOENT;
-    case E_NOT_INCORE:
-      return -EIO;
     default:
       return -EIO;
     }
+}
+
+/*
+ * Mounted file systems.  The mount table is shared by all processes
+ * (as in ExOS); each process discovers the type ids of a disk lazily.
+ */
+static int mounted;
+static unsigned tids[XOK_MAXDISK][CFFS_NTYPES];
+static int tids_ok[XOK_MAXDISK];
+
+static int
+dev_types (unsigned dev)
+{
+  if (dev >= XOK_MAXDISK)
+    return -ENODEV;
+  if (tids_ok[dev])
+    return 0;
+  for (int t = 0; t < CFFS_NTYPES; t++)
+    {
+      int id = sys_xn_type_lookup (dev, cffs_type_names[t]);
+      if (id < 0)
+	return -EIO;
+      tids[dev][t] = id;
+    }
+  tids_ok[dev] = 1;
+  return 0;
+}
+
+#define tid(_dev, _t) (tids[(_dev)][(_t)])
+
+/* Find the C-FFS root of DEV; returns its superblock. */
+static int
+dev_root (unsigned dev, uint32_t * superblk)
+{
+  struct xn_root root;
+  struct cffs_super *s;
+
+  if (dev >= sysinfo_page->si_ndisk || !sysinfo_page->si_disk[dev].d_xn)
+    return -ENODEV;
+  memset (&root, 0, sizeof (root));
+  if (sys_xn_root_lookup (dev, CFFS_ROOTNAME, &root) < 0)
+    return -ENODEV;
+  if (dev_types (dev) < 0)
+    return -EIO;
+  if (xnl_get (dev, root.r_blk, XN_NOPARENT) < 0)
+    return -EIO;
+  s = xnl_map (dev, root.r_blk, 0);
+  if (s == NULL || s->s_magic != CFFS_MAGIC)
+    return -EIO;
+  *superblk = root.r_blk;
+  return 0;
+}
+
+int
+cffs_mount_at (unsigned dev, const char *path)
+{
+  uint32_t sb;
+  int r, slot = -1;
+
+  if (mounttab->magic != MOUNTTAB_MAGIC)
+    return -EIO;
+  if ((r = dev_root (dev, &sb)) < 0)
+    return r;
+  for (int i = 0; i < NMOUNT; i++)
+    {
+      if (!mounttab->m[i].used)
+	{
+	  if (slot < 0)
+	    slot = i;
+	  continue;
+	}
+      if (!strcmp ((const char *) mounttab->m[i].path, path))
+	return -EBUSY;
+    }
+  if (slot < 0)
+    return -ENOSPC;
+  strlcpy ((char *) mounttab->m[slot].path, path, sizeof (mounttab->m[0].path));
+  mounttab->m[slot].dev = dev;
+  mounttab->m[slot].superblk = sb;
+  mounttab->m[slot].used = 1;
+  return 0;
+}
+
+int
+cffs_unmount (const char *path)
+{
+  for (int i = 0; i < NMOUNT; i++)
+    if (mounttab->m[i].used && strcmp (path, "/")
+	&& !strcmp ((const char *) mounttab->m[i].path, path))
+      {
+	xnl_sync (mounttab->m[i].dev);
+	sys_xn_sync (mounttab->m[i].dev);
+	mounttab->m[i].used = 0;
+	return 0;
+      }
+  return -EINVAL;
 }
 
 int
@@ -56,47 +145,71 @@ cffs_mounted (void)
   return mounted;
 }
 
+/*
+ * Mount the root file system: the first disk with a C-FFS root.
+ */
 int
 cffs_mount (void)
 {
-  struct xn_root root;
-
   if (mounted)
     return 0;
-  for (unsigned d = 0; d < sysinfo_page->si_ndisk; d++)
-    {
-      if (!sysinfo_page->si_disk[d].d_xn)
-	continue;
-      exos_touch (&root, sizeof (root), 1);
-      if (sys_xn_root_lookup (d, CFFS_ROOTNAME, &root) < 0)
-	continue;
-      fsdev = d;
-      superblk = root.r_blk;
-      for (int t = 0; t < CFFS_NTYPES; t++)
+  if (mounttab->magic == MOUNTTAB_MAGIC)
+    for (int i = 0; i < NMOUNT; i++)
+      if (mounttab->m[i].used && !strcmp ((const char *) mounttab->m[i].path,
+					  "/"))
 	{
-	  int id = sys_xn_type_lookup (d, cffs_type_names[t]);
-	  if (id < 0)
-	    return -EIO;
-	  tid[t] = id;
+	  mounted = 1;
+	  return 0;
 	}
-      if (xnl_get (d, superblk, XN_NOPARENT) < 0)
-	return -EIO;
-      struct cffs_super *s = xnl_map (d, superblk, 0);
-      if (s == NULL || s->s_magic != CFFS_MAGIC)
-	return -EIO;
-      mounted = 1;
-      return 0;
-    }
+  for (unsigned d = 0; d < sysinfo_page->si_ndisk; d++)
+    if (cffs_mount_at (d, "/") == 0)
+      {
+	mounted = 1;
+	return 0;
+      }
   return -ENODEV;
+}
+
+/* The file system holding PATH (absolute): longest mount prefix. */
+static int
+mount_of (const char *path, const char **rest)
+{
+  int best = -1;
+  size_t bestlen = 0;
+
+  for (int i = 0; i < NMOUNT; i++)
+    {
+      const char *mp = (const char *) mounttab->m[i].path;
+      size_t l = strlen (mp);
+      if (!mounttab->m[i].used)
+	continue;
+      if (strcmp (mp, "/") == 0)
+	l = 0;
+      else if (strncmp (path, mp, l) || (path[l] != '/' && path[l] != 0))
+	continue;
+      if (best < 0 || l > bestlen)
+	{
+	  best = i;
+	  bestlen = l;
+	}
+    }
+  if (rest)
+    *rest = path + bestlen;
+  return best;
 }
 
 int
 cffs_root (struct cffs_ref *r)
 {
+  int m;
+
   if (!mounted && cffs_mount () < 0)
     return -ENODEV;
-  r->dev = fsdev;
-  r->blk = superblk;
+  m = mount_of ("/", NULL);
+  if (m < 0)
+    return -ENODEV;
+  r->dev = mounttab->m[m].dev;
+  r->blk = mounttab->m[m].superblk;
   r->slot = 0;
   return 0;
 }
@@ -166,7 +279,7 @@ alloc_child (const struct cffs_ref *ref, struct cffs_inode *ino,
       memset (&op, 0, sizeof (op));
       op.o_child = nb;
       op.o_nchild = 1;
-      op.o_ctype = tid[type];
+      op.o_ctype = tid (ref->dev, type);
       op.o_nmods = 1;
       *ptr = nb;
       if (ino)
@@ -385,11 +498,22 @@ cffs_namei (const char *path, struct cffs_ref *r)
 {
   char comp[CFFS_NAMELEN + 1];
   struct cffs_ref cur;
-  int e;
+  const char *rest;
+  int e, m;
 
-  e = cffs_root (&cur);
-  if (e < 0)
+  if (!mounted && (e = cffs_mount ()) < 0)
     return e;
+  m = mount_of (path, &rest);
+  if (m < 0)
+    return -ENODEV;
+  cur.dev = mounttab->m[m].dev;
+  cur.blk = mounttab->m[m].superblk;
+  cur.slot = 0;
+  if (dev_types (cur.dev) < 0)
+    return -EIO;
+  if (xnl_parent (cur.blk) == 0)
+    xnl_set_parent (cur.blk, XN_NOPARENT);
+  path = rest;
   while (*path)
     {
       size_t n;
@@ -997,11 +1121,77 @@ cffs_stat (const struct cffs_ref *r, const struct cffs_inode *ino,
 int
 cffs_sync (void)
 {
-  int r;
+  int r = 0;
 
-  if (!mounted)
+  if (!mounted || mounttab->magic != MOUNTTAB_MAGIC)
     return 0;
-  r = xnl_sync (fsdev);
-  sys_xn_sync (fsdev);
+  for (int i = 0; i < NMOUNT; i++)
+    if (mounttab->m[i].used)
+      {
+	if (xnl_sync (mounttab->m[i].dev) < 0)
+	  r = -EIO;
+	sys_xn_sync (mounttab->m[i].dev);
+      }
   return r;
+}
+
+/*
+ * Create a C-FFS on DEV: format it with XN (root capability), install
+ * the templates (the owns-udfs refer to the type ids XN assigns, which
+ * are the free catalogue slots in order), the root, and initialise the
+ * superblock with an empty root directory.
+ */
+int
+cffs_mkfs (unsigned dev)
+{
+  static struct xn_template t[CFFS_NTYPES];
+  unsigned ids[CFFS_NTYPES];
+  struct xn_root root;
+  struct cffs_super sb;
+  struct xn_op op;
+  int r, next = 0;
+
+  if ((r = sys_xn_format (EXOS_CAP, dev)) < 0)
+    return r == -E_CAP_INSUFF ? -EPERM : -EIO;
+  tids_ok[dev] = 0;
+  for (int i = 0; i < CFFS_NTYPES; i++)
+    ids[i] = next++;
+  if (cffs_build_templates (t, ids) < 0)
+    return -EINVAL;
+  for (int i = 0; i < CFFS_NTYPES; i++)
+    {
+      r = sys_xn_type_install (dev, &t[i]);
+      if (r != (int) ids[i])
+	return -EIO;
+    }
+  memset (&root, 0, sizeof (root));
+  strcpy (root.r_name, CFFS_ROOTNAME);
+  root.r_blk = xn_cat_super (dev)->s_data_start;
+  root.r_nblocks = 1;
+  root.r_type = ids[CFFS_T_SUPER];
+  memcpy (&root.r_guard, (const void *) &envinfo_of (__envid)->e_caps[EXOS_CAP],
+	  sizeof (struct cap));
+  if ((r = sys_xn_root_install (EXOS_CAP, dev, &root)) < 0)
+    return -EIO;
+  if ((r = xnl_get (dev, root.r_blk, XN_NOPARENT)) < 0)
+    return r;
+  memset (&sb, 0, sizeof (sb));
+  sb.s_magic = CFFS_MAGIC;
+  sb.s_version = CFFS_VERSION;
+  sb.s_ctime = time (NULL);
+  sb.s_root.i_mode = S_IFDIR | 0755;
+  sb.s_root.i_nlink = 1;
+  sb.s_root.i_uid = __proc->euid;
+  sb.s_root.i_ctime = sb.s_root.i_mtime = sb.s_ctime;
+  memset (&op, 0, sizeof (op));
+  op.o_nmods = 1;
+  op.o_mods[0].m_off = 0;
+  op.o_mods[0].m_len = sizeof (sb);
+  op.o_mods[0].m_data = (uint32_t) & sb;
+  if ((r = sys_xn_modify (EXOS_CAP, dev, root.r_blk, &op)) < 0)
+    return -EIO;
+  if (xnl_sync (dev) < 0)
+    return -EIO;
+  sys_xn_sync (dev);
+  return 0;
 }

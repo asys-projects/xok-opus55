@@ -35,7 +35,26 @@ struct cffs_ref
   uint32_t blk;
 };
 
+/* Shared mount table. */
+#define NMOUNT 8
+#define MOUNTTAB_MAGIC 0x4d4e5454
+struct mounttab
+{
+  uint32_t magic;
+  struct
+  {
+    char path[64];
+    uint32_t dev, superblk, used;
+  } m[NMOUNT];
+};
+/* After the file table (64KB) and the network configuration page. */
+#define MOUNTTAB (USHARED + 0x10000 + PGSIZE)
+#define mounttab ((volatile struct mounttab *) MOUNTTAB)
+
 int cffs_mount (void);
+int cffs_mount_at (unsigned dev, const char *path);
+int cffs_unmount (const char *path);
+int cffs_mkfs (unsigned dev);
 int cffs_mounted (void);
 int cffs_root (struct cffs_ref *r);
 int cffs_iget (const struct cffs_ref *r, struct cffs_inode *ino);

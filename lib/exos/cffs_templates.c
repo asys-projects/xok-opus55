@@ -356,6 +356,10 @@ acl_dir (struct xn_template *t, int super)
   ua_op (&a, UDF_SUB, RX, RK, RT, 0);	/* Entry base. */
   if (super)
     {
+      /* An uninitialised superblock (no magic yet) is set up by the
+         owner of the root (the guard checked when deferring). */
+      ua_op (&a, UDF_LDW, RP, R0, 0, 0);
+      ua_br (&a, UDF_BEQ, RP, R0, ldefer);
       /* Only the root inode, in the first 256 bytes. */
       ua_br (&a, UDF_BNE, RX, R0, ldeny);
       ua_op (&a, UDF_LI, RP, 0, 0, CFFS_DIRENT_INODE);

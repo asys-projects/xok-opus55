@@ -651,6 +651,13 @@ exos_fd_init (int is_boot)
       memset ((void *) NETCFG, 0, PGSIZE);
       ((volatile struct netcfg_page *) NETCFG)->magic = NETCFG_MAGIC;
     }
+  /* The mount table. */
+  if (sys_self_insert_pte (CAP_WORLD, PTE_P | PTE_W | PTE_U | PTE_SHARE,
+			   MOUNTTAB) == 0)
+    {
+      memset ((void *) MOUNTTAB, 0, PGSIZE);
+      mounttab->magic = MOUNTTAB_MAGIC;
+    }
   for (int fd = 0; fd < 3; fd++)
     {
       struct file *f;
