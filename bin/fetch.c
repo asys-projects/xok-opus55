@@ -79,7 +79,7 @@ main (int argc, char **argv)
       return 1;
     }
   static char buf[8192];
-  int inhdr = 1, status = 0;
+  int inhdr = 1, status = 0, vmaj, vmin;
   size_t hlen = 0, total = 0;
   static char hdr[8192];
   ssize_t r;
@@ -88,6 +88,7 @@ main (int argc, char **argv)
       char *p = buf;
       if (inhdr)
 	{
+	  size_t prev = hlen;
 	  size_t take = (size_t) r < sizeof (hdr) - hlen - 1
 	    ? (size_t) r : sizeof (hdr) - hlen - 1;
 	  memcpy (hdr + hlen, buf, take);
@@ -97,12 +98,13 @@ main (int argc, char **argv)
 	  if (e == NULL)
 	    continue;
 	  inhdr = 0;
-	  sscanf (hdr, "HTTP/%*d.%*d %d", &status);
+	  sscanf (hdr, "HTTP/%d.%d %d", &vmaj, &vmin, &status);
 	  if (!quiet)
 	    fprintf (stderr, "fetch: %.*s\n", (int) strcspn (hdr, "\r"), hdr);
-	  size_t body = hlen - (e + 4 - hdr);
-	  p = buf + (take - body);
-	  r = body;
+	  /* The body starts in this buffer, after the header's end. */
+	  size_t start = (e + 4 - hdr) - prev;
+	  p = buf + start;
+	  r -= start;
 	}
       write (ofd, p, r);
       total += r;

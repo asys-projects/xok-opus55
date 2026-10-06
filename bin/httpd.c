@@ -50,7 +50,8 @@ struct conn
   size_t outlen, outoff;
   int free_out;
   int keepalive;
-  uint32_t last;
+  int filefd;			/* Large file being streamed, or -1. */
+  off_t fileleft;
 };
 
 static struct conn conns[MAXCONN];
@@ -160,7 +161,7 @@ respond (struct conn *c, int code, const char *status, const char *type,
 		     "Date: %s\r\nContent-Type: %s\r\nContent-Length: %u\r\n"
 		     "Connection: %s\r\n\r\n", code, status, date, type,
 		     (unsigned) blen, c->keepalive ? "keep-alive" : "close");
-  c->out = malloc (hl + blen);
+  c->out = malloc (hl + (body ? blen : 0));
   if (c->out == NULL)
     {
       c->keepalive = 0;
@@ -169,7 +170,8 @@ respond (struct conn *c, int code, const char *status, const char *type,
   memcpy (c->out, hdr, hl);
   if (body)
     memcpy (c->out + hl, body, blen);
-  c->outlen = hl + blen;
+  /* Without BODY only the header is sent (HEAD, or streamed files). */
+  c->outlen = hl + (body ? blen : 0);
   c->outoff = 0;
   c->free_out = 1;
   (void) copy_body;
@@ -362,23 +364,45 @@ handle_request (struct conn *c)
       return;
     }
   char *data = cache_get (path, &st);
+  if (data == NULL && st.st_size > CACHE_MAXFILE)
+    {
+      /* Too large for the cache: stream it from the file system. */
+      int fd = open (path, O_RDONLY);
+      if (fd < 0)
+	{
+	  error_page (c, 403, "Forbidden");
+	  return;
+	}
+      respond (c, 200, "OK", mime (path), NULL, st.st_size, 0);
+      if (strcmp (method, "HEAD"))
+	{
+	  c->filefd = fd;
+	  c->fileleft = st.st_size;
+	}
+      else
+	close (fd);
+      return;
+    }
   if (data == NULL)
     {
       error_page (c, 500, "Internal Server Error");
       return;
     }
   respond (c, 200, "OK", mime (path), strcmp (method, "HEAD") ? data : NULL,
-	   strcmp (method, "HEAD") ? (size_t) st.st_size : 0, 0);
+	   st.st_size, 0);
 }
 
 static void
 conn_close (struct conn *c)
 {
   close (c->fd);
+  if (c->filefd >= 0)
+    close (c->filefd);
   if (c->free_out)
     free (c->out);
   memset (c, 0, sizeof (*c));
   c->fd = -1;
+  c->filefd = -1;
 }
 
 int
@@ -395,7 +419,7 @@ main (int argc, char **argv)
     else if (!strcmp (argv[i], "-n") && i + 1 < argc)
       max_requests = atol (argv[++i]);
   for (int i = 0; i < MAXCONN; i++)
-    conns[i].fd = -1;
+    conns[i].fd = conns[i].filefd = -1;
 
   lfd = socket (AF_INET, SOCK_STREAM, 0);
   if (lfd < 0)
@@ -457,6 +481,7 @@ main (int argc, char **argv)
 		  fcntl (cfd, F_SETFL, O_NONBLOCK);
 		  memset (&conns[slot], 0, sizeof (conns[slot]));
 		  conns[slot].fd = cfd;
+		  conns[slot].filefd = -1;
 		}
 	      continue;
 	    }
@@ -472,6 +497,33 @@ main (int argc, char **argv)
 		}
 	      if (w > 0)
 		c->outoff += w;
+	      if (c->outoff == c->outlen && c->filefd >= 0)
+		{
+		  /* Refill from the file being streamed. */
+		  static char chunk[16384];
+		  ssize_t n = read (c->filefd, chunk,
+				    c->fileleft < (off_t) sizeof (chunk)
+				    ? (size_t) c->fileleft : sizeof (chunk));
+		  if (n <= 0)
+		    {
+		      conn_close (c);
+		      continue;
+		    }
+		  if (c->free_out)
+		    free (c->out);
+		  c->out = malloc (n);
+		  memcpy (c->out, chunk, n);
+		  c->free_out = 1;
+		  c->outlen = n;
+		  c->outoff = 0;
+		  c->fileleft -= n;
+		  if (c->fileleft == 0)
+		    {
+		      close (c->filefd);
+		      c->filefd = -1;
+		    }
+		  continue;
+		}
 	      if (c->outoff == c->outlen)
 		{
 		  if (c->free_out)
