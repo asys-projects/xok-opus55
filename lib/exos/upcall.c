@@ -189,7 +189,8 @@ exos_init_upcalls (void)
 {
   uint32_t entry = (uint32_t) __exos_upcall;
 
-  exos_ipc_register (IPC_PING, ipc_ping);
+  /* U-area first: after fork, our data is copy-on-write and touching it
+     requires the fault handler. */
   __uenv->u_xstktop = XSTACKTOP;
   __uenv->u_xstksize = XSTACKSIZE;
   __uenv->u_entfault = entry;
@@ -198,6 +199,7 @@ exos_init_upcalls (void)
   __uenv->u_entepilogue = entry;
   __uenv->u_entprologue = entry;
   __uenv->u_ipc_accept = 1;
+  exos_ipc_register (IPC_PING, ipc_ping);
 }
 
 int

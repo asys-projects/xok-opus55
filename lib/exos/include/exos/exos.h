@@ -28,7 +28,8 @@
  *  SHARED        0xa0000000 - 0xb0000000  shared regions (fd table,...)
  *  USTACKTOP     0x9ffff000  user stack, grows down to USTACKBOT
  *  USTACKBOT     0x9f000000
- *  MMAP          0x60000000 - 0x9f000000  mmap/anonymous/exec staging
+ *  BCWIN         0x90000000 - 0x94000000  buffer cache window
+ *  MMAP          0x60000000 - 0x8f000000  mmap/anonymous/exec staging
  *  heap          _end ...    up to 0x60000000
  *  text/data     0x00800000
  */
@@ -39,7 +40,9 @@
 #define USTACKTOP   0x9ffff000UL
 #define USTACKBOT   0x9f000000UL
 #define UMMAP       0x60000000UL
-#define UMMAP_TOP   0x9f000000UL
+#define UMMAP_TOP   0x8f000000UL
+#define BCWIN       0x90000000UL	/* Buffer cache window (XN_NBC pages). */
+#define BCWIN_TOP   0x94000000UL
 #define UHEAP_TOP   0x60000000UL
 #define UTEXT       0x00800000UL
 

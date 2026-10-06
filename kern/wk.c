@@ -144,7 +144,7 @@ wk_install (struct env *e, uaddr_t uterms, unsigned n)
       w->t[i].op = terms[i].wk_op;
       w->t[i].l.kind = w->t[i].r.kind = WK_CONST;
       w->t[i].l.pfn = w->t[i].r.pfn = PFN_INVALID;
-      if (terms[i].wk_op > WK_OR)
+      if (terms[i].wk_op > WK_ANDZ)
 	{
 	  r = -E_INVAL;
 	  goto fail;
@@ -240,6 +240,9 @@ wk_eval (struct env *e)
 	  break;
 	case WK_AND:
 	  t = (l & r) != 0;
+	  break;
+	case WK_ANDZ:
+	  t = (l & r) == 0;
 	  break;
 	default:
 	  t = false;

@@ -162,6 +162,42 @@ static inline int sys_disk_request (unsigned k, unsigned dev, uint32_t sector,
 				    volatile uint32_t *done)
 { return __sys6 (SYS_disk_request, k, dev, sector, nsect | (write ? 0x80000000u : 0), ppn, (uint32_t) done); }
 
+/* XN. */
+static inline int sys_xn_format (unsigned k, unsigned dev)
+{ return __sys2 (SYS_xn_format, k, dev); }
+static inline int sys_xn_type_install (unsigned dev, const void *t)
+{ return __sys2 (SYS_xn_type_install, dev, t); }
+static inline int sys_xn_type_lookup (unsigned dev, const char *name)
+{ return __sys2 (SYS_xn_type_lookup, dev, name); }
+static inline int sys_xn_root_install (unsigned k, unsigned dev, const void *r)
+{ return __sys3 (SYS_xn_root_install, k, dev, r); }
+static inline int sys_xn_root_lookup (unsigned dev, const char *name, void *out)
+{ return __sys3 (SYS_xn_root_lookup, dev, name, out); }
+static inline int sys_xn_bind (unsigned dev, uint32_t blk, uint32_t parent)
+{ return __sys3 (SYS_xn_bind, dev, blk, parent); }
+static inline int sys_xn_readin (unsigned dev, uint32_t blk, unsigned n)
+{ return __sys3 (SYS_xn_readin, dev, blk, n); }
+static inline int sys_xn_insert_pte (unsigned k, unsigned dev, uint32_t blk,
+				     uint32_t va, int writable, unsigned ke,
+				     envid_t id)
+{ return __sys6 (SYS_xn_insert_pte, k, dev, blk, va | (writable ? 1 : 0), ke, id); }
+static inline int sys_xn_alloc (unsigned k, unsigned dev, uint32_t parent, const void *op)
+{ return __sys4 (SYS_xn_alloc, k, dev, parent, op); }
+static inline int sys_xn_free (unsigned k, unsigned dev, uint32_t parent, const void *op)
+{ return __sys4 (SYS_xn_free, k, dev, parent, op); }
+static inline int sys_xn_modify (unsigned k, unsigned dev, uint32_t blk, const void *op)
+{ return __sys4 (SYS_xn_modify, k, dev, blk, op); }
+static inline int sys_xn_writeback (unsigned dev, uint32_t blk, unsigned n)
+{ return __sys3 (SYS_xn_writeback, dev, blk, n); }
+static inline int sys_xn_unbind (unsigned dev, uint32_t blk)
+{ return __sys2 (SYS_xn_unbind, dev, blk); }
+static inline int sys_xn_lock (unsigned k, unsigned dev, uint32_t blk, int lock)
+{ return __sys4 (SYS_xn_lock, k, dev, blk, lock); }
+static inline int sys_xn_lookup (unsigned dev, uint32_t blk)
+{ return __sys2 (SYS_xn_lookup, dev, blk); }
+static inline int sys_xn_sync (unsigned dev)
+{ return __sys1 (SYS_xn_sync, dev); }
+
 static inline int sys_debug (unsigned op, uint32_t arg)
 { return __sys2 (SYS_debug, op, arg); }
 

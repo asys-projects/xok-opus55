@@ -69,8 +69,9 @@ exos_cow_fault (uintptr_t va)
   if (!(pte & PTE_P) || !(pte & PTE_COW))
     return -1;
   ppn = PTE_PPN (pte);
-  if (ppages_info[ppn].pp_refcnt == 1)
-    return sys_mod_pte_range (EXOS_CAP, 0, 0, page, 1, PTE_W, PTE_COW);
+  if (ppages_info[ppn].pp_refcnt == 1 && ppages_info[ppn].pp_state == PP_USER
+      && sys_mod_pte_range (EXOS_CAP, 0, 0, page, 1, PTE_W, PTE_COW) == 0)
+    return 0;
 
   r = sys_self_insert_pte (EXOS_CAP, PTE_P | PTE_W | PTE_U, COW_TMP);
   if (r < 0)
@@ -187,6 +188,14 @@ again:
 	return (void *) va;
       }
   return NULL;
+}
+
+void
+exos_mmap_regions (void (*fn) (uintptr_t, size_t, void *), void *arg)
+{
+  for (int i = 0; i < NMMAP; i++)
+    if (mmaps[i].len)
+      fn (mmaps[i].va, mmaps[i].len, arg);
 }
 
 void

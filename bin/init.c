@@ -1,29 +1,52 @@
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <sys/wait.h>
 #include <exos/exos.h>
 
 int
 main (int argc, char **argv)
 {
-  printf ("init: hello from ExOS, env %x\n", __envid);
-  for (int i = 0; i < 3; i++)
+  printf ("init: ExOS starting, env %x pid %d\n", __envid, getpid ());
+  DIR *d = opendir ("/bin");
+  if (d == NULL)
     {
-      printf ("init: yield %d\n", i);
-      sys_yield (-1);
+      perror ("opendir /bin");
+      sys_reboot (0, 1);
     }
-  volatile unsigned long x = 0;
-  for (unsigned long i = 0; i < 300000000UL; i++)
-    x += i;
-  printf ("busy done: prologues %u epilogues %u excess %u yields %u\n",
-	  __uenv->u_prologue_count, __uenv->u_epilogue_count,
-	  __uenv->u_excess_count, __uenv->u_yield_count);
-  /* Stack growth via fault upcall. */
-  volatile char *p = (char *) (USTACKTOP - 3 * PGSIZE);
-  *p = 1;
-  printf ("stack fault handled: faults %u\n", __uenv->u_fault_count);
-  double d = 1.5;
-  for (int i = 0; i < 10; i++)
-    d = d * 1.5;
-  printf ("fpu: %d\n", (int) d);
+  struct dirent *de;
+  while ((de = readdir (d)) != NULL)
+    printf ("  /bin/%s\n", de->d_name);
+  closedir (d);
+
+  int fd = open ("/tmp/test.txt", O_CREAT | O_WRONLY | O_TRUNC, 0644);
+  printf ("open -> %d\n", fd);
+  printf ("write -> %d\n", (int) write (fd, "hello file\n", 11));
+  close (fd);
+  char buf[64];
+  fd = open ("/tmp/test.txt", O_RDONLY);
+  int n = read (fd, buf, sizeof (buf) - 1);
+  buf[n > 0 ? n : 0] = 0;
+  printf ("read back %d: %s", n, buf);
+  close (fd);
+
+  pid_t pid = fork ();
+  if (pid == 0)
+    {
+      printf ("child: pid %d\n", getpid ());
+      char *av[] = { "hello", "a", "b", NULL };
+      execv ("/bin/hello", av);
+      perror ("execv");
+      _exit (1);
+    }
+  int status;
+  pid_t w = waitpid (pid, &status, 0);
+  printf ("init: child %d exited status %d (w %d)\n", pid, WEXITSTATUS (status), w);
+  sync ();
+  sys_debug (DBG_PRINT_ENVS, 0);
   sys_reboot (0, 1);
   return 0;
 }

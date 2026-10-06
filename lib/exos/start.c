@@ -61,6 +61,10 @@ __exos_start (uint32_t * sp)
   environ = envp;
   exos_proc_init (is_boot);
   exos_fd_init (is_boot);
+  {
+    extern void exos_proc_setname (int argc, char **argv);
+    exos_proc_setname (argc, argv);
+  }
 
   for (void (**f) (void) = __init_array_start; f < __init_array_end; f++)
     (*f) ();

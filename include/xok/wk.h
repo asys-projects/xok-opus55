@@ -37,6 +37,7 @@
 #define WK_GE  5
 #define WK_AND 6		/* (lhs & rhs) != 0 */
 #define WK_OR  7		/* Separator: ends a product (operands ignored). */
+#define WK_ANDZ 8		/* (lhs & rhs) == 0 */
 
 struct wk_term
 {

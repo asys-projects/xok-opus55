@@ -43,3 +43,12 @@ __exos_resume:
 __exos_resume_utf:
 	movl 4(%esp), %esp
 	jmp __exos_resume
+
+/*
+ * A forked child starts here, on its exception stack: set up the upcall
+ * entry points, then longjmp into fork().
+ */
+	.globl __exos_fork_child_entry
+__exos_fork_child_entry:
+	call __exos_fork_child_c
+	ud2
