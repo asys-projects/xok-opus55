@@ -1,0 +1,8 @@
+
+  Welcome to Xok/ExOS.
+
+  Xok is an exokernel: it securely multiplexes the hardware and leaves
+  every abstraction to library operating systems.  This shell, the
+  file system (C-FFS on XN), the TCP/IP stack and the web server all
+  run as unprivileged library code.
+

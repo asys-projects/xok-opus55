@@ -105,7 +105,7 @@ msgring_free (struct env *e)
   if (e->mr == NULL)
     return;
   pmem_unpin (e->mr->pfn);
-  kmem_free (0, (vaddr_t) e->mr, sizeof (struct msgring));
+  kfree (e->mr, sizeof (struct msgring));
   e->mr = NULL;
 }
 
@@ -127,7 +127,7 @@ msgring_set (struct env *e, uaddr_t ring, unsigned n)
     return -E_INVAL;
 
   msgring_free (e);
-  mr = (struct msgring *) kmem_alloc (0, sizeof (*mr));
+  mr = (struct msgring *) kmalloc (sizeof (*mr));
   if (mr == NULL)
     return -E_NO_MEM;
   mr->n = n;

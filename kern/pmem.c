@@ -308,7 +308,7 @@ pmem_init (void)
 
   /* Allocate our tables with NUX's boot allocator first. */
   ppinfo = pmem_export_area (npages * sizeof (struct ppage_info), &va);
-  ppages = (struct ppage *) kmem_alloc (0, npages * sizeof (struct ppage));
+  ppages = (struct ppage *) kmalloc (npages * sizeof (struct ppage));
   KASSERT (ppages != NULL);
   memset (ppages, 0, npages * sizeof (struct ppage));
 

@@ -45,6 +45,8 @@
 #endif
 
 int strcmp (const char *a, const char *b);
+void *kmalloc (size_t size);
+void kfree (void *p, size_t size);
 
 #define kprintf printf
 #define kpanic(...) do { printf ("\nXOK PANIC (%s:%d): ", __FILE__, __LINE__); \

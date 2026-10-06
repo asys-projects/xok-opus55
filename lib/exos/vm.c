@@ -55,32 +55,50 @@ exos_range_unmap (uintptr_t va, size_t len)
  * Copy-on-write fault at VA: copy the page to a fresh one, or, if we
  * hold the only reference, simply make it writable.
  */
-#define COW_TMP (UMMAP_TOP - PGSIZE)
+#define COW_TMP(_depth) (UMMAP_TOP - (4 + (_depth)) * PGSIZE)
+#define COW_MAXDEPTH 8
 
+/*
+ * Copy-on-write fault.  This runs in a (robust) critical section, so
+ * that no time-slice upcall interrupts it; nested faults (e.g. from IPC
+ * upcalls) use their own temporary page.
+ */
 int
 exos_cow_fault (uintptr_t va)
 {
   xpte_t pte;
-  uintptr_t page = PGROUNDDOWN (va);
+  uintptr_t page = PGROUNDDOWN (va), tmp;
   ppn_t ppn;
-  int r;
+  int r = 0;
+  uint32_t depth;
 
+  exos_crit_enter ();
+  depth = __rt->cow_depth++;
   pte = exos_pte (page);
-  if (!(pte & PTE_P) || !(pte & PTE_COW))
-    return -1;
+  if (depth >= COW_MAXDEPTH || !(pte & PTE_P))
+    {
+      r = -1;
+      goto out;
+    }
+  if ((pte & PTE_W) || !(pte & PTE_COW))
+    goto out;			/* Already resolved (nested fault). */
   ppn = PTE_PPN (pte);
   if (ppages_info[ppn].pp_refcnt == 1 && ppages_info[ppn].pp_state == PP_USER
       && sys_mod_pte_range (EXOS_CAP, 0, 0, page, 1, PTE_W, PTE_COW) == 0)
-    return 0;
+    goto out;
 
-  r = sys_self_insert_pte (EXOS_CAP, PTE_P | PTE_W | PTE_U, COW_TMP);
+  tmp = COW_TMP (depth);
+  r = sys_self_insert_pte (EXOS_CAP, PTE_P | PTE_W | PTE_U, tmp);
   if (r < 0)
-    return r;
-  memcpy ((void *) COW_TMP, (void *) page, PGSIZE);
-  r = sys_self_insert_pte (EXOS_CAP, (vpt[COW_TMP >> PGSHIFT] & PTE_FRAME)
+    goto out;
+  memcpy ((void *) tmp, (void *) page, PGSIZE);
+  r = sys_self_insert_pte (EXOS_CAP, (vpt[tmp >> PGSHIFT] & PTE_FRAME)
 			   | PTE_P | PTE_W | PTE_U
 			   | (pte & (PTE_AVAIL & ~PTE_COW)), page);
-  sys_self_insert_pte (EXOS_CAP, 0, COW_TMP);
+  sys_self_insert_pte (EXOS_CAP, 0, tmp);
+out:
+  __rt->cow_depth--;
+  exos_crit_leave ();
   return r;
 }
 
@@ -173,7 +191,7 @@ again:
 	va = mmaps[i].va + mmaps[i].len;
 	goto again;
       }
-  if (va + len > COW_TMP)
+  if (va + len > COW_TMP (COW_MAXDEPTH))
     return NULL;
   for (int i = 0; i < NMMAP; i++)
     if (mmaps[i].len == 0)

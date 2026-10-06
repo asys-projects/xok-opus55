@@ -768,20 +768,17 @@ execve (const char *path, char *const argv[], char *const envp[])
     if (__fdtab.fd[fd] >= 0 && __fdtab.cloexec[fd])
       close (fd);
   cffs_sync ();
-  /* Hand our time slices to the new environment. */
-  {
-    int given = 0;
-    for (unsigned c = 0; c < sysinfo_page->si_ncpu; c++)
-      for (int q = 0; q < NQUANTA; q++)
-	if (sysinfo_page->si_qvec[c][q].q_env == __envid
-	    && sys_quantum_set (EXOS_CAP, q, c, child) == 0)
-	  given++;
-    if (!given)
-      give_quantum (child);
-  }
+  /* The new environment gets its own time slice; ours are released
+     when we exit, once it has taken over. */
+  give_quantum (child);
   __proc->exec_env = child;
-  __proc->state = PROC_EXECED;
   sys_env_set_status (EXOS_CAP, child, ENV_RUNNABLE);
+  /* Stay until the new environment has published the process (our
+     pid) in its u-area, so that the process never disappears. */
+  sys_yield (child);
+  exos_sleep_until_mem (&proc_of_env (child)->state, WK_NE, PROC_FREE,
+			5000);
+  __proc->state = PROC_EXECED;
   sys_env_free (0, 0);
   for (;;)
     sys_yield (-1);
@@ -1044,12 +1041,13 @@ exos_fault_signal (int sig, struct utf *utf)
     {
       char buf[160];
       int n = snprintf (buf, sizeof (buf),
-			"%s[%d]: %s at eip %08x (address %08x)\n",
-			__proc->name, __proc->pid,
+			"%s[%d]: %s at eip %08x (address %08x, err %x, "
+			"pte %llx)\n", __proc->name, __proc->pid,
 			sig == SIGSEGV ? "segmentation fault" :
 			sig == SIGFPE ? "arithmetic exception" :
 			sig == SIGILL ? "illegal instruction" : "fault",
-			utf->utf_eip, utf->utf_va);
+			utf->utf_eip, utf->utf_va, utf->utf_err,
+			utf->utf_va < UXOK_BASE ? exos_pte (utf->utf_va) : 0ULL);
       sys_cputs (buf, n);
       exit_signal (sig);
     }

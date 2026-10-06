@@ -123,8 +123,9 @@ vpt_slot (struct env *e, vaddr_t va, bool alloc, pfn_t * pfnp)
     {
       if (!alloc)
 	return NULL;
-      e->vpt = (pfn_t *) kmem_alloc (0, VPT_NPAGES * sizeof (pfn_t));
-      KASSERT (e->vpt != NULL);
+      e->vpt = (pfn_t *) kmalloc (VPT_NPAGES * sizeof (pfn_t));
+      if (e->vpt == NULL)
+	return NULL;
       for (unsigned i = 0; i < VPT_NPAGES; i++)
 	e->vpt[i] = PFN_INVALID;
     }
@@ -502,7 +503,7 @@ env_reap (struct env *e)
       for (unsigned i = 0; i < VPT_NPAGES; i++)
 	if (e->vpt[i] != PFN_INVALID)
 	  pfn_free (e->vpt[i]);
-      kmem_free (0, (vaddr_t) e->vpt, VPT_NPAGES * sizeof (pfn_t));
+      kfree (e->vpt, VPT_NPAGES * sizeof (pfn_t));
       e->vpt = NULL;
     }
 

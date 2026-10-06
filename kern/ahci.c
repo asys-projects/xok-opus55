@@ -251,7 +251,7 @@ ahci_probe (struct pci_dev *d)
   if (d->class != 0x01 || d->subclass != 0x06 || d->progif != 0x01)
     return false;
   pci_enable (d, true);
-  h = (struct ahci_hba *) kmem_alloc (0, sizeof (*h));
+  h = (struct ahci_hba *) kmalloc (sizeof (*h));
   KASSERT (h != NULL);
   memset (h, 0, sizeof (*h));
   h->abar = pci_map_bar (d, 5);
@@ -274,7 +274,7 @@ ahci_probe (struct pci_dev *d)
       if (rd (h, PORT (p, PX_SIG)) != SIG_ATA)
 	continue;
 
-      ap = (struct ahci_port *) kmem_alloc (0, sizeof (*ap));
+      ap = (struct ahci_port *) kmalloc (sizeof (*ap));
       KASSERT (ap != NULL);
       memset (ap, 0, sizeof (*ap));
       ap->hba = h;

@@ -42,7 +42,7 @@ sreg_create (struct env *cur, unsigned k, uint32_t size)
       {
 	sregs[i].dead = false;
 	sregs[i].refs = 0;
-	sregs[i].data = (uint8_t *) kmem_alloc (0, size);
+	sregs[i].data = (uint8_t *) kmalloc (size);
 	if (sregs[i].data == NULL)
 	  return -E_NO_MEM;
 	memset (sregs[i].data, 0, size);
@@ -81,7 +81,7 @@ sreg_destroy (struct env *cur, unsigned k, unsigned id)
   s->dead = true;
   if (s->refs == 0)
     {
-      kmem_free (0, (vaddr_t) s->data, s->size);
+      kfree (s->data, s->size);
       s->used = false;
     }
   return 0;
@@ -115,7 +115,7 @@ sreg_word_unref (unsigned id)
   KASSERT (id < NSREG && s->used && s->refs > 0);
   if (--s->refs == 0 && s->dead)
     {
-      kmem_free (0, (vaddr_t) s->data, s->size);
+      kfree (s->data, s->size);
       s->used = false;
     }
 }

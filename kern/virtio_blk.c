@@ -112,7 +112,7 @@ virtio_blk_probe (struct pci_dev *d)
   if (d->vendor != VIRTIO_VENDOR || (d->device != 0x1001
 				     && d->device != 0x1042))
     return false;
-  v = (struct vblk *) kmem_alloc (0, sizeof (*v));
+  v = (struct vblk *) kmalloc (sizeof (*v));
   KASSERT (v != NULL);
   memset (v, 0, sizeof (*v));
   v->io = virtio_begin (d);

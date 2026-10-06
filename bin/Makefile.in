@@ -4,7 +4,12 @@
 # SPDX-License-Identifier: BSD-2-Clause
 #
 
-PROGRAMS= init hello
+PROGRAMS= init sh hello echo cat ls mkdir rmdir rm cp mv wc head tail grep \
+	touch env sleep true false sync kill date ps uptime free df sysinfo \
+	hexdump sort uniq tee yes chmod stat basename dirname seq poweroff
+
+# Programs installed under several names.
+ALIASES= reboot:poweroff
 
 SRCS+= $(addsuffix .c,$(PROGRAMS))
 
@@ -16,8 +21,15 @@ $(1): $$(OBJDIR)/$(1).o $$(XOK_LIBS) $$(XOK_CRT0) $$(XOK_LDSCRIPT)
 endef
 $(foreach p,$(PROGRAMS),$(eval $(call prog_rule,$(p))))
 
-programs.lst: Makefile
-	echo $(filter-out init,$(PROGRAMS)) > $@
+define alias_rule
+$(1): $(2)
+	cp $(2) $(1)
+endef
+$(foreach a,$(ALIASES),$(eval $(call alias_rule,$(word 1,$(subst :, ,$(a))),$(word 2,$(subst :, ,$(a))))))
+ALIAS_NAMES= $(foreach a,$(ALIASES),$(word 1,$(subst :, ,$(a))))
 
-ALL_TARGET+= $(PROGRAMS) programs.lst
-CLEAN_FILES+= $(PROGRAMS) programs.lst
+programs.lst: Makefile
+	echo $(PROGRAMS) $(ALIAS_NAMES) > $@
+
+ALL_TARGET+= $(PROGRAMS) $(ALIAS_NAMES) programs.lst
+CLEAN_FILES+= $(PROGRAMS) $(ALIAS_NAMES) programs.lst

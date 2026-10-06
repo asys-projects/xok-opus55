@@ -25,8 +25,11 @@ xok.mb: subdirs
 
 # Disk image with an XN file system holding the ExOS binaries.
 DISK_SIZE ?= 64
+ROOTFS_FILES= /etc/rc=$(SRCROOT)/rootfs/etc/rc /etc/motd=$(SRCROOT)/rootfs/etc/motd \
+	$(foreach f,$(notdir $(wildcard $(SRCROOT)/rootfs/www/*)),/www/$(f)=$(SRCROOT)/rootfs/www/$(f))
 disk.img: subdirs
-	tools/mkxnfs -o $@ -s $(DISK_SIZE) -d bin $(addprefix bin/,$(shell cat bin/programs.lst 2>/dev/null))
+	tools/mkxnfs -o $@ -s $(DISK_SIZE) -D /www $(addprefix -f ,$(ROOTFS_FILES)) \
+		-d bin $(shell cat bin/programs.lst 2>/dev/null)
 
 QEMU_MEM ?= 256
 QEMU_SMP ?= 2

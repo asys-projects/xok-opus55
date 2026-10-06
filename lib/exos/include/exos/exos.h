@@ -87,6 +87,14 @@ struct exos_proc
 #define proc_of_env(_id) ((volatile struct exos_proc *) uenv_of (_id)->u_libos)
 extern volatile struct exos_proc *const __proc;
 
+/* Library runtime state that must never be copy-on-write: kept in the
+   u-area, after the process information. */
+struct exos_rt
+{
+  volatile uint32_t cow_depth;	/* Nesting of copy-on-write handling. */
+};
+#define __rt ((volatile struct exos_rt *) (UAREA + UENV_LIBOS_OFF + 512))
+
 /* Startup and runtime. */
 void exos_panic (const char *fmt, ...) __attribute__ ((noreturn));
 void exos_init_upcalls (void);

@@ -21,6 +21,6 @@ XOK_LIBS= $(BUILDROOT)/lib/exos/$(OBJDIR)/libexos.a $(BUILDROOT)/lib/libc/$(OBJD
 
 # Link a user program: $(call xok_link,output,objects)
 define xok_link
-$(CC) -nostdlib -static -Wl,--build-id=none -T $(XOK_LDSCRIPT) $(XOK_LIBDIRS) \
+$(CC) -nostdlib -static -Wl,--build-id=none -Wl,-S -T $(XOK_LDSCRIPT) $(XOK_LIBDIRS) \
 	-o $(1) $(XOK_CRT0) -Wl,--start-group $(2) -lexos -lc -lgcc -Wl,--end-group
 endef

@@ -22,7 +22,7 @@ bio_alloc (void)
     bio_freelist = b->next;
   else
     {
-      b = (struct bio *) kmem_alloc (0, sizeof (*b));
+      b = (struct bio *) kmalloc (sizeof (*b));
       if (b == NULL)
 	return NULL;
     }
@@ -264,7 +264,7 @@ raw_done (struct bio *b)
       pmem_unpin (rq->donepfn);
     }
   pmem_unpin (rq->page);
-  kmem_free (0, (vaddr_t) rq, sizeof (*rq));
+  kfree (rq, sizeof (*rq));
   bio_free (b);
 }
 
@@ -290,7 +290,7 @@ sys_disk_request (struct env *e, unsigned k, unsigned dev, uint32_t sector,
   if (done & 3)
     return -E_INVAL;
 
-  rq = (struct rawreq *) kmem_alloc (0, sizeof (*rq));
+  rq = (struct rawreq *) kmalloc (sizeof (*rq));
   b = bio_alloc ();
   if (rq == NULL || b == NULL)
     return -E_NO_MEM;
@@ -301,7 +301,7 @@ sys_disk_request (struct env *e, unsigned k, unsigned dev, uint32_t sector,
       pte = env_getpte (e, done & ~(uaddr_t) PAGE_MASK);
       if (!(pte & PTE_P) || !(pte & PTE_W))
 	{
-	  kmem_free (0, (vaddr_t) rq, sizeof (*rq));
+	  kfree (rq, sizeof (*rq));
 	  bio_free (b);
 	  return -E_FAULT;
 	}

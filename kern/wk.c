@@ -119,7 +119,7 @@ wk_free (struct env *e)
   if (e->wk == NULL)
     return;
   wk_release (e->wk);
-  kmem_free (0, (vaddr_t) e->wk, sizeof (struct wkpred));
+  kfree (e->wk, sizeof (struct wkpred));
   e->wk = NULL;
 }
 
@@ -135,7 +135,7 @@ wk_install (struct env *e, uaddr_t uterms, unsigned n)
   if (copyin (terms, uterms, n * sizeof (struct wk_term)) < 0)
     return -E_FAULT;
 
-  w = (struct wkpred *) kmem_alloc (0, sizeof (*w));
+  w = (struct wkpred *) kmalloc (sizeof (*w));
   if (w == NULL)
     return -E_NO_MEM;
   w->n = 0;
@@ -167,7 +167,7 @@ wk_install (struct env *e, uaddr_t uterms, unsigned n)
 
 fail:
   wk_release (w);
-  kmem_free (0, (vaddr_t) w, sizeof (*w));
+  kfree (w, sizeof (*w));
   return r;
 }
 

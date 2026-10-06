@@ -270,7 +270,7 @@ ide_probe_drive (struct ide_channel *ch, unsigned slave)
     return;
   insw (ch->cmd + ATA_DATA, id, 256);
 
-  dr = (struct ide_drive *) kmem_alloc (0, sizeof (*dr));
+  dr = (struct ide_drive *) kmalloc (sizeof (*dr));
   KASSERT (dr != NULL);
   memset (dr, 0, sizeof (*dr));
   dr->ch = ch;
@@ -298,7 +298,7 @@ ide_probe_channel (uint16_t cmd, uint16_t ctl, uint16_t bm, unsigned irq)
   /* Floating bus? */
   if (inb (cmd + ATA_STATUS) == 0xff)
     return;
-  ch = (struct ide_channel *) kmem_alloc (0, sizeof (*ch));
+  ch = (struct ide_channel *) kmalloc (sizeof (*ch));
   KASSERT (ch != NULL);
   memset (ch, 0, sizeof (*ch));
   ch->cmd = cmd;

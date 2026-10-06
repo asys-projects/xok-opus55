@@ -83,7 +83,7 @@ run_addons (void)
 {
   static volatile int running;
 
-  if (running || __uenv->u_in_critical)
+  if (__uenv->u_in_critical || running)
     return;
   running = 1;
   for (int i = 0; i < ncswitch; i++)
@@ -95,8 +95,11 @@ static void
 handle_fault (struct utf *utf)
 {
   uintptr_t va = utf->utf_va;
-  xpte_t pte = exos_pte (va);
+  xpte_t pte = va < UXOK_BASE ? exos_pte (va) : 0;
 
+  /* Spurious (already resolved, e.g. by a nested handler). */
+  if ((pte & PTE_P) && (!(utf->utf_err & 2) || (pte & PTE_W)))
+    return;
   /* Copy-on-write. */
   if ((utf->utf_err & 2) && (pte & PTE_P) && (pte & PTE_COW))
     {
