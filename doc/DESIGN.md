@@ -316,6 +316,10 @@ hangs a device.
 * **UDFs, DPF and wakeup predicates are interpreted**, not compiled to
   native code.
 * **Concurrency**: one big kernel lock serialises the kernel on SMP.
+* **Revocation** covers physical memory only, and the abort protocol
+  takes back only buffer-cache mappings in the declared revocable range:
+  ExOS has no swap, so anonymous pages are never repossessed. CPU
+  revocation is `sys_cpu_revoke` (forced epilogue upcall).
 * **XN** has no "move" operation, so C-FFS renames files across
   directories by copying them (directories cannot be moved); C-FFS has
   no hard links (inodes are embedded). Owned-set verification recomputes
