@@ -158,6 +158,9 @@ void exos_ipc_register (unsigned op, ipc_handler_t h);
 int exos_ipc_send (envid_t to, uint32_t op, uint32_t a, uint32_t b,
 		   uint32_t c, uint32_t * r1);
 
+/* Redirected INT instructions (e.g. for binary emulation). */
+int exos_set_int_handler (unsigned vec, void (*h) (struct utf *));
+
 /* Signals. */
 void exos_sig_post (int sig);
 void exos_sig_deliver (void);

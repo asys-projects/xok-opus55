@@ -21,6 +21,7 @@
 #include <exos/fd.h>
 #include <exos/net.h>
 #include <xok/ipc.h>
+#include <xok/xn.h>
 
 static int npass, nfail;
 
@@ -159,6 +160,173 @@ static void
 test_protection (void)
 {
   CHECK ("mem: cannot map another user's page", in_child (steal_page) == 0);
+}
+
+/*
+ * Sharing a page with another user, by granting a capability.
+ */
+static uintptr_t shared_va = 0x71000000;
+static ppn_t shared_ppn;
+
+static int
+map_shared (void)
+{
+  ppn_t ppn = shared_ppn;
+  /* The page was not inherited (no-fork): map it by name. */
+  if (setuid (1003) < 0)
+    return 1;
+  if (sys_self_insert_pte (EXOS_CAP, PPN2PTE (ppn) | PTE_P | PTE_U,
+			   shared_va) != -E_CAP_INSUFF)
+    return 2;
+  /* Wait for the parent to grant us the capability in slot 6. */
+  for (int i = 0; i < 200 && !envinfo_of (__envid)->e_caps[6].c_valid; i++)
+    usleep (10000);
+  if (sys_self_insert_pte (6, PPN2PTE (ppn) | PTE_P | PTE_U, shared_va) != 0)
+    return 3;
+  return *(volatile int *) shared_va == 0x5ade ? 0 : 4;
+}
+
+static void
+test_grant (void)
+{
+  struct cap s;
+  int st;
+
+  memset (&s, 0, sizeof (s));
+  s.c_valid = 1;
+  s.c_perm = CAP_R | CAP_GRANT;
+  s.c_len = 1;
+  s.c_name[0] = 'S';
+  exos_page_alloc (shared_va, PTE_W | PTE_NOFORK);
+  *(volatile int *) shared_va = 0x5ade;
+  shared_ppn = PTE_PPN (exos_pte (shared_va));
+  int r1 = sys_cap_forge (CAP_ROOT, 6, &s);
+  int r2 = sys_ppage_acl (EXOS_CAP, PTE_PPN (exos_pte (shared_va)), &s);
+  pid_t p = fork ();
+  if (p == 0)
+    _exit (map_shared ());
+  usleep (300000);
+  int r3 = sys_cap_grant (CAP_ROOT, exos_pid2env (p), 6, 6);
+  waitpid (p, &st, 0);
+  if (r1 || r2 || r3 || !WIFEXITED (st) || WEXITSTATUS (st))
+    printf ("  grant: forge %d acl %d grant %d child %d\n", r1, r2, r3,
+	    WEXITSTATUS (st));
+  CHECK ("caps: page shared with another user by granting a capability",
+	 r1 == 0 && r2 == 0 && r3 == 0 && WIFEXITED (st)
+	 && WEXITSTATUS (st) == 0);
+  exos_page_unmap (shared_va);
+  sys_cap_clear (6);
+}
+
+/*
+ * Accessed/dirty bits, INT redirection, raw disk.
+ */
+static volatile int int_seen;
+
+static void
+on_int80 (struct utf *utf)
+{
+  int_seen = utf->utf_eax + 1;
+}
+
+static void
+test_misc (void)
+{
+  uintptr_t va = 0x72000000;
+  exos_page_alloc (va, PTE_W);
+  sys_vpt_refresh (va, 1);
+  int clean = !(exos_pte (va) & PTE_D);
+  *(volatile int *) va = 1;
+  sys_vpt_refresh (va, 1);
+  CHECK ("mem: hardware dirty bit exported", clean
+	 && (exos_pte (va) & PTE_D) && (exos_pte (va) & PTE_A));
+  exos_page_unmap (va);
+
+  exos_set_int_handler (0x80, on_int80);
+  asm volatile ("int $0x80"::"a" (41));
+  CHECK ("events: INT instruction redirected to the application",
+	 int_seen == 42);
+  exos_set_int_handler (0x80, NULL);
+
+  /* Raw disk access with the root capability: XN's superblock. */
+  static volatile uint32_t done;
+  va = 0x73000000;
+  exos_page_alloc (va, PTE_W);
+  done = 0;
+  exos_touch ((void *) &done, 4, 1);
+  int r = sys_disk_request (CAP_ROOT, 0, 0, 8, 0, PTE_PPN (exos_pte (va)),
+			    &done);
+  if (r == 0)
+    exos_sleep_until_mem (&done, WK_NE, 0, 5000);
+  CHECK ("disk: raw read with the root capability",
+	 r == 0 && done == 1 && *(volatile uint32_t *) va == XN_MAGIC);
+  exos_page_unmap (va);
+}
+
+/*
+ * SMP: CPU-bound processes on every CPU.
+ */
+static int
+spin_work (void)
+{
+  volatile uint32_t h = 0;
+  uint64_t end = exos_time_ns () + 300000000ULL;
+  int cpus = 0;
+  while (exos_time_ns () < end)
+    {
+      h = h * 31 + 7;
+      cpus |= 1 << envinfo_of (__envid)->e_cpu;
+    }
+  return cpus;
+}
+
+static void
+test_smp (void)
+{
+  unsigned ncpu = sysinfo_page->si_ncpu;
+  pid_t p[8];
+  int seen = 0, ok = 1, st;
+  uint64_t t0 = exos_time_ns ();
+
+  for (unsigned i = 0; i < ncpu * 2 && i < 8; i++)
+    if ((p[i] = fork ()) == 0)
+      _exit (spin_work ());
+  for (unsigned i = 0; i < ncpu * 2 && i < 8; i++)
+    {
+      if (waitpid (p[i], &st, 0) != p[i] || !WIFEXITED (st))
+	ok = 0;
+      else
+	seen |= WEXITSTATUS (st);
+    }
+  uint64_t ms = (exos_time_ns () - t0) / 1000000;
+  int used = __builtin_popcount (seen);
+  printf ("  smp: %u CPUs, %d used, %d processes in %llu ms\n", ncpu, used,
+	  ncpu * 2 > 8 ? 8 : ncpu * 2, ms);
+  CHECK ("smp: processes run on every CPU", ok && used == (int) ncpu);
+
+  /* Revoke the CPU of a running process. */
+  pid_t q = fork ();
+  if (q == 0)
+    {
+      volatile int x = 0;
+      for (;;)
+	x++;
+    }
+  usleep (200000);
+  envid_t qe = exos_pid2env (q);
+  unsigned before = uenv_of (qe)->u_epilogue_count;
+  int r = 0;
+  for (int i = 0; i < 20; i++)
+    {
+      int c = envinfo_of (qe)->e_cpu;
+      if (c >= 0)
+	r |= sys_cpu_revoke (EXOS_CAP, c, qe);
+      usleep (5000);
+    }
+  CHECK ("sched: cpu_revoke", r == 0
+	 && uenv_of (qe)->u_epilogue_count > before);
+  kill (q, SIGKILL);
+  waitpid (q, &st, 0);
 }
 
 /*
@@ -636,6 +804,9 @@ main (int argc, char **argv)
 {
   test_caps ();
   test_memory ();
+  test_grant ();
+  test_misc ();
+  test_smp ();
   test_protection ();
   test_fork ();
   test_signals ();

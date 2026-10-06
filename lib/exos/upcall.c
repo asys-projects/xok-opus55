@@ -116,10 +116,33 @@ handle_fault (struct utf *utf)
   exos_fault_signal (SIGSEGV, utf);
 }
 
+/* Handlers of redirected INT instructions. */
+static void (*int_handlers[256]) (struct utf *);
+
+int
+exos_set_int_handler (unsigned vec, void (*h) (struct utf *))
+{
+  if (vec < 0x20 || vec >= 256)
+    return -1;
+  int_handlers[vec] = h;
+  if (h)
+    __uenv->u_intmask[vec / 32] |= 1u << (vec % 32);
+  else
+    __uenv->u_intmask[vec / 32] &= ~(1u << (vec % 32));
+  return 0;
+}
+
 static void
 handle_except (struct utf *utf)
 {
   int sig;
+
+  if (utf->utf_trapno >= 0x20 && utf->utf_trapno < 256
+      && int_handlers[utf->utf_trapno])
+    {
+      int_handlers[utf->utf_trapno] (utf);
+      return;
+    }
 
   switch (utf->utf_trapno)
     {
