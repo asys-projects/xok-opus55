@@ -1,0 +1,48 @@
+#
+# Xok/ExOS top level Makefile.
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+SUBDIRS= nux kern lib bin tools
+
+kern: nux
+lib: nux
+bin: lib
+tools:
+
+NUXB=$(BUILDROOT)/nux
+APXH=$(NUXB)/apxh/multiboot/apxh
+AR50=$(NUXB)/tools/ar50/ar50
+OBJAPPEND=$(NUXB)/tools/objappend/objappend
+QEMU=@QEMU@
+
+# Bootable multiboot image: APXH boot loader + kernel + boot program.
+xok.mb: subdirs
+	cp $(APXH) $@
+	$(AR50) -m nux-payload -c $@.ar50 kern/xok bin/init
+	$(OBJAPPEND) -a $@ $@.ar50
+
+# Disk image with an XN file system holding the ExOS binaries.
+DISK_SIZE ?= 64
+disk.img: subdirs
+	tools/mkxnfs -o $@ -s $(DISK_SIZE) -d bin $(addprefix bin/,$(shell cat bin/programs.lst 2>/dev/null))
+
+QEMU_MEM ?= 256
+QEMU_SMP ?= 2
+QEMU_NET ?= -netdev user,id=n0,hostfwd=tcp::8080-:80,hostfwd=udp::5555-:7 -device e1000,netdev=n0
+QEMU_DISK ?= -drive file=disk.img,format=raw,if=ide
+QEMU_FLAGS= -m $(QEMU_MEM) -smp $(QEMU_SMP) -nographic -serial mon:stdio -no-reboot
+
+qemu: xok.mb disk.img
+	$(QEMU) $(QEMU_FLAGS) -kernel xok.mb $(QEMU_DISK) $(QEMU_NET)
+
+qemu-gdb: xok.mb disk.img
+	$(QEMU) $(QEMU_FLAGS) -kernel xok.mb $(QEMU_DISK) $(QEMU_NET) -S -s
+
+check: xok.mb disk.img
+	$(SRCROOT)/tests/run-tests.sh $(BUILDROOT)
+
+ALL_TARGET+= xok.mb
+CLEAN_FILES+= xok.mb xok.mb.ar50 disk.img
+.PHONY: qemu qemu-gdb check

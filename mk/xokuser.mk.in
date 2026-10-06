@@ -1,0 +1,26 @@
+#
+# Make fragment for Xok user space (library OS, libc, programs).
+# Included by Makefiles generated with nux/mk/top.mk.
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+GCCINC:=$(shell $(CC) -print-file-name=include)
+
+CPPFLAGS+= -nostdinc -isystem $(GCCINC) \
+	-I$(SRCROOT)/lib/libc/include -I$(SRCROOT)/lib/exos/include \
+	-I$(SRCROOT)/include -D_XOK_USER
+CFLAGS+= -ffreestanding -fno-builtin -fno-omit-frame-pointer -Wall \
+	-fno-strict-aliasing -fno-pie -march=i686
+ASFLAGS+= -D_ASSEMBLER
+
+XOK_LIBDIRS= -L$(BUILDROOT)/lib/exos/$(OBJDIR) -L$(BUILDROOT)/lib/libc/$(OBJDIR)
+XOK_CRT0= $(BUILDROOT)/lib/exos/$(OBJDIR)/crt0.o
+XOK_LDSCRIPT= $(SRCROOT)/lib/exos/user.ld
+XOK_LIBS= $(BUILDROOT)/lib/exos/$(OBJDIR)/libexos.a $(BUILDROOT)/lib/libc/$(OBJDIR)/libc.a
+
+# Link a user program: $(call xok_link,output,objects)
+define xok_link
+$(CC) -nostdlib -static -Wl,--build-id=none -T $(XOK_LDSCRIPT) $(XOK_LIBDIRS) \
+	-o $(1) $(XOK_CRT0) -Wl,--start-group $(2) -lexos -lc -lgcc -Wl,--end-group
+endef

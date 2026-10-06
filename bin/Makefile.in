@@ -1,0 +1,23 @@
+#
+# ExOS programs.
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+PROGRAMS= init
+
+SRCS+= $(addsuffix .c,$(PROGRAMS))
+
+include $(BUILDROOT)/mk/xokuser.mk
+
+define prog_rule
+$(1): $$(OBJDIR)/$(1).o $$(XOK_LIBS) $$(XOK_CRT0) $$(XOK_LDSCRIPT)
+	$$(call xok_link,$$@,$$(OBJDIR)/$(1).o $$($(1)_OBJS))
+endef
+$(foreach p,$(PROGRAMS),$(eval $(call prog_rule,$(p))))
+
+programs.lst: Makefile
+	echo $(filter-out init,$(PROGRAMS)) > $@
+
+ALL_TARGET+= $(PROGRAMS) programs.lst
+CLEAN_FILES+= $(PROGRAMS) programs.lst

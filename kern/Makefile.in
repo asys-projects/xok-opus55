@@ -1,0 +1,18 @@
+#
+# Xok kernel.
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+NOINST=y
+NUX_KERNEL=xok
+
+SRCS+= main.c pmem.c cap.c env.c sched.c trap.c uaccess.c syscall.c \
+	ipc.c wk.c sreg.c console.c dev.c pci.c power.c rtc.c stubs.c
+
+CFLAGS+= -I$(SRCROOT)/include -I$(SRCROOT)/nux/include -I$(BUILDROOT)/nux/include
+
+@COMPILE_LIBNUX@
+@COMPILE_LIBEC@
+@LINK_LIBEC@
+@LINK_LIBNUX@

@@ -1,0 +1,12 @@
+#
+# ExOS C library.
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+LIBRARY=c
+NOINST=y
+
+SRCS+= string.c printf.c stdio.c stdlib.c malloc.c setjmp.S time.c
+
+include $(BUILDROOT)/mk/xokuser.mk

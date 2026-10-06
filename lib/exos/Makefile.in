@@ -1,0 +1,14 @@
+#
+# ExOS library operating system.
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+
+LIBRARY=exos
+NOINST=y
+
+SRCS+= entry.S upcall.c start.c vm.c posix_min.c
+
+OBJSRCS+= crt0.S
+
+include $(BUILDROOT)/mk/xokuser.mk

@@ -1,0 +1,13 @@
+# Host tools for building Xok/ExOS images.
+HOST_CC=@HOST_CC@
+srcdir=@srcdir@
+top_srcdir=@top_srcdir@
+CFLAGS=-O2 -g -Wall -I$(top_srcdir)/include
+
+all:
+
+clean:
+
+install:
+
+.PHONY: all clean install
