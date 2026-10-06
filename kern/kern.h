@@ -44,6 +44,8 @@
 #define UINT64_MAX 0xffffffffffffffffULL
 #endif
 
+int strcmp (const char *a, const char *b);
+
 #define kprintf printf
 #define kpanic(...) do { printf ("\nXOK PANIC (%s:%d): ", __FILE__, __LINE__); \
                          printf (__VA_ARGS__); printf ("\n"); \

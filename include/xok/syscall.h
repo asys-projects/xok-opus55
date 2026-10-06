@@ -88,7 +88,7 @@ enum
   SYS_xn_root_lookup,		/* (dev, const char *name, struct xn_root *out) */
   SYS_xn_bind,			/* (dev, blk, parent) -> bc index */
   SYS_xn_readin,		/* (dev, blk, n) start reading bound blocks */
-  SYS_xn_insert_pte,		/* (k, dev, blk, va, writable) */
+  SYS_xn_insert_pte,		/* (k, dev, blk, va | writable, ke, envid) */
   SYS_xn_alloc,			/* (k, dev, parent, const struct xn_op *) */
   SYS_xn_free,			/* (k, dev, parent, const struct xn_op *) */
   SYS_xn_modify,		/* (k, dev, blk, const struct xn_op *) */

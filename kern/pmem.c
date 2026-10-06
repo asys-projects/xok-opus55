@@ -224,9 +224,13 @@ pmem_page_ref (pfn_t pfn)
 void
 pmem_page_unref (pfn_t pfn)
 {
+  extern void xn_page_unref (pfn_t pfn);
+
   KASSERT (pfn < npages);
   KASSERT (ppinfo[pfn].pp_refcnt > 0);
   ppinfo[pfn].pp_refcnt--;
+  if (ppinfo[pfn].pp_state == PP_BC)
+    xn_page_unref (pfn);
   maybe_release (pfn);
 }
 

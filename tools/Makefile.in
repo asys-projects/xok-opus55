@@ -1,12 +1,24 @@
 # Host tools for building Xok/ExOS images.
+#
+# SPDX-License-Identifier: BSD-2-Clause
+
 HOST_CC=@HOST_CC@
 srcdir=@srcdir@
 top_srcdir=@top_srcdir@
-CFLAGS=-O2 -g -Wall -I$(top_srcdir)/include
+CFLAGS=-O2 -g -Wall -DXN_HOST -I$(srcdir) -I$(top_srcdir)/include \
+	-I$(top_srcdir)/lib/exos/include
 
-all:
+MKXNFS_SRCS= $(srcdir)/mkxnfs.c $(top_srcdir)/kern/udf.c \
+	$(top_srcdir)/lib/exos/cffs_templates.c $(top_srcdir)/lib/exos/udfasm.c
+
+all: mkxnfs
+
+mkxnfs: $(MKXNFS_SRCS) $(srcdir)/udfhost.h $(top_srcdir)/include/xok/xn.h \
+	$(top_srcdir)/lib/exos/include/exos/cffs.h
+	$(HOST_CC) $(CFLAGS) -o $@ $(MKXNFS_SRCS)
 
 clean:
+	rm -f mkxnfs
 
 install:
 
