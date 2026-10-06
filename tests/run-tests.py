@@ -13,6 +13,9 @@ from xoktest import Xok, PROMPT
 
 B = os.path.abspath(sys.argv[1])
 QUICK = "--quick" in sys.argv
+# --only=NAME[,NAME]: run only these device configurations.
+ONLY = [a[7:].split(",") for a in sys.argv if a.startswith("--only=")]
+ONLY = ONLY[0] if ONLY else None
 TMP = tempfile.mkdtemp(prefix="xoktests-")
 results = []
 
@@ -49,6 +52,9 @@ def boot(disks, net="e1000", machine=None, smp=2, fwd=None, mem=256):
         if iface == "ahci":
             d += ["-drive", "file=%s,format=raw,if=none,id=d%d" % (img, i),
                   "-device", "ide-hd,drive=d%d,bus=ide.%d" % (i, i)]
+        elif iface == "nvme":
+            d += ["-drive", "file=%s,format=raw,if=none,id=d%d" % (img, i),
+                  "-device", "nvme,serial=xok%d,drive=d%d" % (i, i)]
         else:
             d += ["-drive", "file=%s,format=raw,if=%s,index=%d" % (img, iface, i)]
     n = None
@@ -178,6 +184,8 @@ def test_crash():
 
 
 def test_config(name, disk_if, net, machine=None, smp=2):
+    if ONLY is not None and name not in ONLY:
+        return
     img = os.path.join(TMP, name + ".img")
     make_disk(img)
     try:
@@ -214,14 +222,16 @@ def test_newfs():
     report("newfs: file system built in ExOS verifies on the host", ok, msg)
 
 
-test_main()
-test_crash()
-test_newfs()
+if ONLY is None:
+    test_main()
+    test_crash()
+    test_newfs()
 if not QUICK:
     test_config("ahci-e1000e", "ahci", "e1000e", machine="q35")
     test_config("virtio", "virtio", "virtio-net-pci", smp=4)
     test_config("rtl8139-up", "ide", "rtl8139", smp=1)
     test_config("ne2k", "ide", "ne2k_pci")
+    test_config("nvme-e1000e", "nvme", "e1000e", machine="q35")
 
 npass = sum(1 for _, ok in results if ok)
 nfail = len(results) - npass

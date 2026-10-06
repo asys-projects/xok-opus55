@@ -145,11 +145,11 @@ void *pci_map_bar (struct pci_dev *d, unsigned bar);
 bool ide_probe (struct pci_dev *d);
 bool ahci_probe (struct pci_dev *d);
 bool virtio_blk_probe (struct pci_dev *d);
+bool nvme_probe (struct pci_dev *d);
 bool e1000_probe (struct pci_dev *d);
 bool rtl8139_probe (struct pci_dev *d);
 bool virtio_net_probe (struct pci_dev *d);
 bool ne2k_probe (struct pci_dev *d);
-void ide_isa_probe (void);
 
 /*
  * DMA helpers: physically contiguous kernel buffers.

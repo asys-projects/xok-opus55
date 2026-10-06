@@ -155,7 +155,7 @@ pci_probe_dev (struct pci_dev *d)
 {
   bool claimed = false;
 
-  if (ide_probe (d) || ahci_probe (d) || virtio_blk_probe (d)
+  if (ide_probe (d) || ahci_probe (d) || virtio_blk_probe (d) || nvme_probe (d)
       || e1000_probe (d) || rtl8139_probe (d) || virtio_net_probe (d)
       || ne2k_probe (d))
     claimed = true;

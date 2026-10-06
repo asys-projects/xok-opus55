@@ -258,7 +258,7 @@ vector. XN reclaims clean, unmapped buffers when allocations fail.
 
 As in Xok, drivers are in the kernel and what is exported is a secure
 multiplexing (XN, DPF), not the device. PCI enumeration; disks: ATA on
-PCI IDE with bus-master DMA (PIO fallback, LBA48), AHCI, virtio-blk;
+PCI IDE with bus-master DMA (PIO fallback, LBA48), AHCI, virtio-blk, NVMe;
 NICs: Intel e1000 (82540/82545) and e1000e (82574), RTL8139,
 NE2000 (RTL8029), virtio-net; console on the serial line and VGA (NUX) with input from
 COM1 and the PS/2 keyboard; CMOS RTC; ACPI power-off and reset. Drivers
