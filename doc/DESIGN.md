@@ -260,7 +260,7 @@ As in Xok, drivers are in the kernel and what is exported is a secure
 multiplexing (XN, DPF), not the device. PCI enumeration; disks: ATA on
 PCI IDE with bus-master DMA (PIO fallback, LBA48), AHCI, virtio-blk, NVMe;
 NICs: Intel e1000 (82540/82545) and e1000e (82574), RTL8139,
-NE2000 (RTL8029), virtio-net; console on the serial line and VGA (NUX) with input from
+NE2000 (RTL8029), AMD PCnet-PCI II, virtio-net; console on the serial line and VGA (NUX) with input from
 COM1 and the PS/2 keyboard; CMOS RTC; ACPI power-off and reset. Drivers
 are interrupt-driven and also polled at every tick, so a lost edge never
 hangs a device.
@@ -327,7 +327,9 @@ hangs a device.
   process groups are minimal, `alarm` is not implemented.
 * **Hardware**: ATAPI, floppy, USB, sound and graphics adapters are not
   supported; the network drivers cover e1000/e1000e, RTL8139,
-  NE2000 and virtio-net (not PCnet or eepro100).
+  NE2000, PCnet and virtio-net (not the i8255x/eepro100 family, vmxnet3
+  or ISA-only NICs). Disks: IDE, AHCI, virtio-blk, NVMe (no SCSI HBAs
+  such as lsi/megasas/virtio-scsi).
 
 ## 5. NUX
 

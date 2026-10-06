@@ -231,6 +231,7 @@ if not QUICK:
     test_config("virtio", "virtio", "virtio-net-pci", smp=4)
     test_config("rtl8139-up", "ide", "rtl8139", smp=1)
     test_config("ne2k", "ide", "ne2k_pci")
+    test_config("pcnet", "ide", "pcnet")
     test_config("nvme-e1000e", "nvme", "e1000e", machine="q35")
 
 npass = sum(1 for _, ok in results if ok)

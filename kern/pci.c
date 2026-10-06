@@ -157,7 +157,7 @@ pci_probe_dev (struct pci_dev *d)
 
   if (ide_probe (d) || ahci_probe (d) || virtio_blk_probe (d) || nvme_probe (d)
       || e1000_probe (d) || rtl8139_probe (d) || virtio_net_probe (d)
-      || ne2k_probe (d))
+      || ne2k_probe (d) || pcnet_probe (d))
     claimed = true;
   kprintf ("pci %02x:%02x.%x %04x:%04x %s%s\n", d->bus, d->dev, d->fn,
 	   d->vendor, d->device, pci_class_name (d->class, d->subclass),

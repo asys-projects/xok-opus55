@@ -150,6 +150,7 @@ bool e1000_probe (struct pci_dev *d);
 bool rtl8139_probe (struct pci_dev *d);
 bool virtio_net_probe (struct pci_dev *d);
 bool ne2k_probe (struct pci_dev *d);
+bool pcnet_probe (struct pci_dev *d);
 
 /*
  * DMA helpers: physically contiguous kernel buffers.
